@@ -1,4 +1,4 @@
-name: Build MineChatParty
+name: Build MineCoinsPlugins
 
 on:
   push:
