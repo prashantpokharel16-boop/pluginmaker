@@ -1,0 +1,39 @@
+name: Build MineChatParty
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract plugin
+        run: |
+          unzip MineChatParty.zip -d plugin
+          echo "Extracted files:"
+          find plugin -maxdepth 3 -type f
+
+      - name: Setup Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: plugin/**/pom.xml
+
+      - name: Build plugin
+        working-directory: plugin/MineChatParty
+        run: mvn clean package
+
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: MineChatParty
+          path: plugin/MineChatParty/target/*.jar
