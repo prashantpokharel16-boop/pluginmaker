@@ -1,10 +1,10 @@
-name: Build All Minecraft Plugins
+```yaml
+name: Build MineCoinsPlugins
 
 on:
   push:
     branches:
       - main
-
   workflow_dispatch:
 
 jobs:
@@ -12,134 +12,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ==========================================
-      # 1. Download repository
-      # ==========================================
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # ==========================================
-      # 2. Setup Java 25
-      # ==========================================
+      - name: Extract CoinCore
+        run: |
+          unzip CoinCore-1.0.1-complete.zip -d plugin
+
+          echo "Extracted files:"
+          find plugin -maxdepth 5 -type f
+
       - name: Setup Java 25
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "25"
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: plugin/CoinCore-1.0.1-complete/source/pom.xml
 
-      # ==========================================
-      # 3. Find and extract ALL ZIP files
-      # ==========================================
-      - name: Extract all plugin ZIPs
-        shell: bash
+      - name: Build CoinCore
+        working-directory: plugin/CoinCore-1.0.1-complete/source
+        run: mvn clean package
+
+      - name: Show build output
         run: |
-          mkdir -p build-work
-          mkdir -p build-output
+          echo "Built JAR files:"
+          find plugin/CoinCore-1.0.1-complete/source/target -maxdepth 1 -type f -name "*.jar" -print
 
-          found=0
-
-          for zipfile in *.zip; do
-            if [ -f "$zipfile" ]; then
-              found=1
-
-              echo "======================================"
-              echo "Extracting: $zipfile"
-              echo "======================================"
-
-              name=$(basename "$zipfile" .zip)
-
-              mkdir -p "build-work/$name"
-
-              unzip -q "$zipfile" -d "build-work/$name"
-
-              echo "Extracted:"
-              find "build-work/$name" -maxdepth 4 -type f | head -100
-            fi
-          done
-
-          if [ "$found" -eq 0 ]; then
-            echo "ERROR: No ZIP files found!"
-            exit 1
-          fi
-
-      # ==========================================
-      # 4. Find every pom.xml
-      # ==========================================
-      - name: Find Maven projects
-        shell: bash
-        run: |
-          echo "======================================"
-          echo "Searching for pom.xml files"
-          echo "======================================"
-
-          find build-work -name "pom.xml" -print
-
-      # ==========================================
-      # 5. Build EVERY Maven project
-      # ==========================================
-      - name: Build all plugins
-        shell: bash
-        run: |
-          mkdir -p build-output
-
-          success=0
-          failed=0
-
-          while IFS= read -r pom; do
-
-            project_dir=$(dirname "$pom")
-
-            echo ""
-            echo "======================================"
-            echo "Building:"
-            echo "$project_dir"
-            echo "======================================"
-
-            if mvn -f "$pom" clean package --no-transfer-progress; then
-
-              echo "BUILD SUCCESS: $project_dir"
-              success=$((success + 1))
-
-              # Copy every generated JAR
-              find "$project_dir/target" \
-                -maxdepth 1 \
-                -type f \
-                -name "*.jar" \
-                -exec cp {} build-output/ \;
-
-            else
-
-              echo "BUILD FAILED: $project_dir"
-              failed=$((failed + 1))
-
-            fi
-
-          done < <(find build-work -name "pom.xml" -print)
-
-          echo ""
-          echo "======================================"
-          echo "BUILD SUMMARY"
-          echo "======================================"
-          echo "Successful projects: $success"
-          echo "Failed projects:     $failed"
-          echo "======================================"
-
-          echo ""
-          echo "Generated JAR files:"
-          find build-output -type f -name "*.jar" -print
-
-          # Fail the workflow if everything failed
-          if [ "$success" -eq 0 ]; then
-            echo "No plugins were successfully built."
-            exit 1
-          fi
-
-      # ==========================================
-      # 6. Upload ALL successful JARs
-      # ==========================================
-      - name: Upload all plugin JARs
+      - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
-          name: Minecraft-Plugins
-          path: build-output/*.jar
-          if-no-files-found: error
+          name: CoinCore-1.0.1
+          path: plugin/CoinCore-1.0.1-complete/source/target/*.jar
+```
